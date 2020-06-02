@@ -1,8 +1,9 @@
 import requests 
-import os
+import subprocess
+import shutil
 from pytube import YouTube
  
-SAVE_PATH = 'C:\\Users\\username\\Music\\myplaylist\\' #CHANGE TO PATH WHERE YOU WANT TO SAVE THE SONGS
+SAVE_PATH = 'C:\\Users\\username\\Music\\GoodTimes\\' #CHANGE TO PATH WHERE YOU WANT TO SAVE THE SONGS
 
 PLAYLIST_LINK = "https://www.youtube.com/playlist?list=PLArQ6Xij15ikMnefk5BL5PwdTLfqmtMNz" #PUT YOUR PUBLIC PLAYLIST LINK HERE
 KEY="" #insert a Youtube Data API v3 key here
@@ -13,7 +14,6 @@ downloadLink = "https://www.youtube.com/watch?v="
 PLAYLIST_ID = PLAYLIST_LINK[PLAYLIST_LINK.find("=")+1:]
 final="https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId="+PLAYLIST_ID+"&key="+KEY
 counter = 0
-
 
 r = requests.get(final)
 json = r.json()
@@ -27,6 +27,12 @@ for result in range(0, totalRes, perPage):
         currId = items[songId]["contentDetails"]["videoId"]
         try:
             yt = YouTube(downloadLink+currId)
+            for i in range(3):              #Retry 3 times if there are issues with the title
+                if yt.title == 'YouTube':
+                    yt = YouTube(downloadLink)
+                else:
+                    break            
+            thumbnail_url = yt.thumbnail_url
         except Exception as e:
             print(e)
             print("Error with pytube for video :" + downloadLink+currId)
@@ -35,14 +41,18 @@ for result in range(0, totalRes, perPage):
         #print(d_video)
         try: 
             #downloading the video
-            dfile = d_video.download(SAVE_PATH)
+            title = yt.title.replace('\\', '').replace('/', '').replace(':', ' - ').replace('*', '-').replace('?', '').replace('<', '').replace('>', '').replace('|', '').replace('.', '') 
+            dfile = d_video.download()
+            temp_name = 'temp_name'+str(counter)+'.mp4'
+            final_name = title+'.mp4'
+            #adds album art
+            subprocess.call(['ffmpeg', '-i', dfile, '-i', thumbnail_url, '-map', '1', '-map', '0', '-c', 'copy','-disposition:0', 'attached_pic', temp_name, '-loglevel', 'quiet'])
+            subprocess.call(['rm', dfile])
             if d_video.title == 'YouTube':
-                unknown_name = 'unknown_title'+str(counter)+'.mp4'
-                os.rename(dfile, SAVE_PATH+unknown_name)
+                final_name = 'unknown_title'+str(counter)+'.mp4'
                 counter += 1
-                print("DOWNLOADED: " + unknown_name) 
-            else:
-                print("DOWNLOADED: " + yt.title)
+            shutil.move(temp_name, SAVE_PATH+final_name)
+            print("DOWNLOADED: " + final_name)
         except Exception as e:
             print(e)
             print("Error Downloading")

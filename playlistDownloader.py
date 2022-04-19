@@ -84,7 +84,7 @@ def download_playlist(link, key, save_path, start_num, end_num):
                     #downloading the video
                     #title = title.replace('\\', '').replace('/', '').replace(':', ' - ').replace('*', '-').replace('?', '').replace('<', '').replace('>', '').replace('|', '').replace('.', '').replace('\'', '').replace('\"', '') 
                     #temp_name = 'temp_name'+str(vidNum)+'.mp3'
-                    final_name = title.rsplit('-', 1)[0] + '.mp3'
+                    final_name = title.rsplit('-'+currId, 1)[0] + '.mp3'
                     #adds album art
                     #os.system('ffmpeg -i "' + dfile + '" -i "' + thumbnail_url + '" -q:a 0 -map a -c copy -disposition:0 attached_pic "' + temp_name + '" -loglevel quiet')
                     

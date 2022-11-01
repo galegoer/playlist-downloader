@@ -6,15 +6,17 @@ import tkinter
 from tkinter import filedialog
 import youtube_dl
 from win10toast import ToastNotifier
+from get_cover_art import CoverFinder
+import eyed3
 
 def handleClick():
     print("clicked")
     link = playlistLink.get()
-    key = apiKey.get()
+    key = apiKey.get()    
     try:
         save_path = app_window.sourceFolder+'/'
     except:
-        save_path = ''
+        save_path = os.getcwd()
     print(save_path)
     if not allVideos.get():
         print("NOT ALL VIDS")
@@ -38,6 +40,7 @@ def download_playlist(link, key, save_path, start_num, end_num):
     
     r = requests.get(final)
     json = r.json()
+    #print(json)
     
     totalRes = json["pageInfo"]["totalResults"]
     if(end_num == -1):
@@ -77,10 +80,21 @@ def download_playlist(link, key, save_path, start_num, end_num):
                     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(downloadLink+currId, download=True)
                         print(info)
+                        album = info['album']
+                        artist = info['artist']
+                        audio_title = info['title']
                         title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
                         print("TITLE: " + title)
                     thumbnail_url = 'https://i.ytimg.com/vi/'+currId+'/hqdefault.jpg'
                 
+                    audiofile = eyed3.load(title)
+                    audiofile.tag.artist = artist
+                    audiofile.tag.album = album
+                    # not sure if needed
+                    audiofile.tag.title = audio_title
+                    
+                    audiofile.tag.save()
+                    
                     #downloading the video
                     #title = title.replace('\\', '').replace('/', '').replace(':', ' - ').replace('*', '-').replace('?', '').replace('<', '').replace('>', '').replace('|', '').replace('.', '').replace('\'', '').replace('\"', '') 
                     #temp_name = 'temp_name'+str(vidNum)+'.mp3'
@@ -101,6 +115,10 @@ def download_playlist(link, key, save_path, start_num, end_num):
         r = requests.get(final)
         json = r.json()
         nextToken = json.get("nextPageToken")
+
+    finder = CoverFinder()
+    
+    finder.scan_folder(save_path)
     
 def chooseDir():
     currdir = os.getcwd()

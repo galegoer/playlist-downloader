@@ -16,7 +16,7 @@ def handleClick():
     try:
         save_path = app_window.sourceFolder+'/'
     except:
-        save_path = os.getcwd()
+        save_path = os.getcwd().replace("\\","/")+'/'
     print(save_path)
     if not allVideos.get():
         print("NOT ALL VIDS")
@@ -67,25 +67,25 @@ def download_playlist(link, key, save_path, start_num, end_num):
                 try:
                     ydl_opts = {
                         'debug_printtraffic': 'false',
-                        'writethumbnail': 'True',                        
                         'format': 'bestaudio',
                         'postprocessors': [{
                             'key': 'FFmpegExtractAudio',
                             'preferredcodec': 'mp3',
                             'preferredquality': '192',},
-                            {'key': 'EmbedThumbnail',},
                         ],
                     }
                     
                     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(downloadLink+currId, download=True)
                         print(info)
-                        album = info['album']
-                        artist = info['artist']
-                        audio_title = info['title']
+                        album = info.get('album')
+                        artist = info.get('artist')
+                        if (artist and len(artist.split(',')) > 1) or (not artist):
+                            artist = info.get('channel')
+                        audio_title = info.get('title')
                         title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
                         print("TITLE: " + title)
-                    thumbnail_url = 'https://i.ytimg.com/vi/'+currId+'/hqdefault.jpg'
+                    #thumbnail_url = 'https://i.ytimg.com/vi/'+currId+'/hqdefault.jpg'
                 
                     audiofile = eyed3.load(title)
                     audiofile.tag.artist = artist
@@ -116,8 +116,9 @@ def download_playlist(link, key, save_path, start_num, end_num):
         json = r.json()
         nextToken = json.get("nextPageToken")
 
-    finder = CoverFinder()
+    finder = CoverFinder(options={'cleanup': True})
     
+    # Make sure iTunes is not open
     finder.scan_folder(save_path)
     
 def chooseDir():

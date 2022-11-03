@@ -1,18 +1,20 @@
 import requests
 import os
-#from decouple import config
-#from pytube import YouTube
 import tkinter
 from tkinter import filedialog
 import youtube_dl
 from win10toast import ToastNotifier
 from get_cover_art import CoverFinder
 import eyed3
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+from dotenv import load_dotenv
+
 
 def handleClick():
     print("clicked")
     link = playlistLink.get()
-    key = apiKey.get()    
+    key = apiKey.get()
     try:
         save_path = app_window.sourceFolder+'/'
     except:
@@ -28,7 +30,17 @@ def handleClick():
         print("ALL VIDS")
         enterInfo.config(text='Downloading... ')
         download_playlist(link, key, save_path, 1, -1)
-    enterInfo.config(text='Enter Info')    
+    enterInfo.config(text='Enter Info')   
+
+def searchMetaData(title):
+    
+    result = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials()).search(title, 1, 0)
+    track = result['tracks']['items'][0]
+    artist = track['artists'][0]['name']
+    album = track['album']['name']
+    # not sure if this guaranteed but if we don't want the name of features
+    audio_title = track['name'].split("(")[0][:-1]
+    return audio_title, artist, album
 
 def download_playlist(link, key, save_path, start_num, end_num):
     video_number = 0
@@ -80,9 +92,13 @@ def download_playlist(link, key, save_path, start_num, end_num):
                         print(info)
                         album = info.get('album')
                         artist = info.get('artist')
-                        if (artist and len(artist.split(',')) > 1) or (not artist):
-                            artist = info.get('channel')
                         audio_title = info.get('title')
+                        if (artist and len(artist.split(',')) > 1) or (not artist):
+                            # back up if no information search through spotify might be an easier way but this works for now
+                            artist = info.get('channel')
+                            # add artist/channel name in case song title could be interpreted as another song
+                            audio_title, artist, album = searchMetaData(audio_title + ' ' + artist)
+                        
                         title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
                         print("TITLE: " + title)
                     #thumbnail_url = 'https://i.ytimg.com/vi/'+currId+'/hqdefault.jpg'
@@ -128,6 +144,7 @@ def chooseDir():
     print(app_window.sourceFolder)
 
 if __name__ == "__main__":
+    load_dotenv()
     toaster = ToastNotifier()
     app_window = tkinter.Tk()
     intro = tkinter.Label(text="Welcome\n Note: Will freeze upon download but notifications will be sent upon each download", fg="red")

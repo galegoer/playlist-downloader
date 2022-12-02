@@ -3,13 +3,23 @@ import os
 import tkinter
 from tkinter import filedialog
 import youtube_dl
-from win10toast import ToastNotifier
 from get_cover_art import CoverFinder
 import eyed3
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
 
+RETRY = 3
+DOWNLOAD_LINK = "https://youtube.com/watch?v="
+YDL_OPTS = {
+    'debug_printtraffic': 'false',
+    'format': 'bestaudio',
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',},
+    ],
+}
 
 def handleClick():
     print("clicked")
@@ -50,13 +60,47 @@ def searchMetaData(title):
             return audio_title, artist, album
         return audio_title[0], artist, album
     except:
-        print('could not find: ', title)
+        print('Could not find:', title)
     
     
+def download_song(currId, save_path):
+    try:
+        with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:
+            info = ydl.extract_info(DOWNLOAD_LINK+currId, download=True)
+            album = info.get('album')
+            artist = info.get('artist')
+            audio_title = info.get('title')
+            if (artist and len(artist.split(',')) > 1) or (not artist):
+                # back up if no information search through spotify might be an easier way but this works for now
+                artist = info.get('channel')
+                # add artist/channel name in case song title could be interpreted as another song
+                audio_title, artist, album = searchMetaData(audio_title + ' ' + artist)
+            title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
+            print("TITLE:", title)
+    
+        audiofile = eyed3.load(title)
+        audiofile.tag.artist = artist
+        audiofile.tag.album = album
+        # not sure if needed
+        audiofile.tag.title = audio_title
+        
+        audiofile.tag.save()
+        
+        final_name = title.rsplit('-'+currId, 1)[0] + '.mp3'
+        #adds album art
+        #os.system('ffmpeg -i "' + dfile + '" -i "' + thumbnail_url + '" -q:a 0 -map a -c copy -disposition:0 attached_pic "' + temp_name + '" -loglevel quiet')
+        
+        os.rename(title, save_path+final_name)
+        print("DOWNLOADED:", final_name)
+        return 0
+    except Exception as e:
+        print("Exception:", e)
+        return -1
+
 
 def download_playlist(link, key, save_path, start_num, end_num):
     video_number = 0
-    downloadLink = "https://youtube.com/watch?v="
+    failed = open("failed.txt", "a")
     
     playlist_id = link[link.find("=")+1:]
     final="https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId="+str(playlist_id)+"&key="+str(key)
@@ -87,55 +131,19 @@ def download_playlist(link, key, save_path, start_num, end_num):
                     nextToken = None
                     break
             else:
-                currId = items[songId]["contentDetails"]["videoId"]
-                try:
-                    ydl_opts = {
-                        'debug_printtraffic': 'false',
-                        'format': 'bestaudio',
-                        'postprocessors': [{
-                            'key': 'FFmpegExtractAudio',
-                            'preferredcodec': 'mp3',
-                            'preferredquality': '192',},
-                        ],
-                    }
+                downloaded = False
+                currId = items[songId]["contentDetails"]["videoId"]                
+                for i in range(RETRY):
+                    if download_song(currId, save_path) == 0:
+                        downloaded = True
+                        break
+                if not downloaded:
+                    with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:
+                        info = ydl.extract_info(DOWNLOAD_LINK+currId, download=False)
+                    artist = info.get('channel')
+                    audio_title = info.get('title')
                     
-                    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                        info = ydl.extract_info(downloadLink+currId, download=True)
-                        print(info)
-                        album = info.get('album')
-                        artist = info.get('artist')
-                        audio_title = info.get('title')
-                        if (artist and len(artist.split(',')) > 1) or (not artist):
-                            # back up if no information search through spotify might be an easier way but this works for now
-                            artist = info.get('channel')
-                            # add artist/channel name in case song title could be interpreted as another song
-                            audio_title, artist, album = searchMetaData(audio_title + ' ' + artist)
-                        
-                        title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
-                        print("TITLE: " + title)
-                    #thumbnail_url = 'https://i.ytimg.com/vi/'+currId+'/hqdefault.jpg'
-                
-                    audiofile = eyed3.load(title)
-                    audiofile.tag.artist = artist
-                    audiofile.tag.album = album
-                    # not sure if needed
-                    audiofile.tag.title = audio_title
-                    
-                    audiofile.tag.save()
-                    
-                    #downloading the video
-                    #title = title.replace('\\', '').replace('/', '').replace(':', ' - ').replace('*', '-').replace('?', '').replace('<', '').replace('>', '').replace('|', '').replace('.', '').replace('\'', '').replace('\"', '') 
-                    #temp_name = 'temp_name'+str(vidNum)+'.mp3'
-                    final_name = title.rsplit('-'+currId, 1)[0] + '.mp3'
-                    #adds album art
-                    #os.system('ffmpeg -i "' + dfile + '" -i "' + thumbnail_url + '" -q:a 0 -map a -c copy -disposition:0 attached_pic "' + temp_name + '" -loglevel quiet')
-                    
-                    os.rename(title, save_path+final_name)
-                    toaster.show_toast("Playlist downloader", 'downloaded: '+final_name, duration=3, threaded=True)                    
-                    print("DOWNLOADED: " + final_name)
-                except Exception as e:
-                    print(e)
-                    print("Error Downloading")
+                    failed.write("Failed downloading song: " + audio_title + ' - ' + artist + '\n')
                 vidNum += 1
         if nextToken == None:
             break
@@ -148,6 +156,7 @@ def download_playlist(link, key, save_path, start_num, end_num):
     
     # Make sure iTunes is not open
     finder.scan_folder(save_path)
+    failed.close()
     
 def chooseDir():
     currdir = os.getcwd()
@@ -157,7 +166,6 @@ def chooseDir():
 
 if __name__ == "__main__":
     load_dotenv()
-    toaster = ToastNotifier()
     app_window = tkinter.Tk()
     intro = tkinter.Label(text="Welcome\n Note: Will freeze upon download but notifications will be sent upon each download", fg="red")
     intro.pack()

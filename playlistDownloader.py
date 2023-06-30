@@ -8,6 +8,7 @@ import eyed3
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
+import csv
 
 RETRY = 3
 DOWNLOAD_LINK = "https://youtube.com/watch?v="
@@ -26,9 +27,9 @@ def handleClick():
     link = playlistLink.get()
     key = apiKey.get()
     try:
-        save_path = app_window.sourceFolder+'/'
+        save_path = app_window.sourceFolder+'\\'
     except:
-        save_path = os.getcwd().replace("\\","/")+'/'
+        save_path = os.getcwd()+'\\'
     print(save_path)
     if not allVideos.get():
         print("NOT ALL VIDS")
@@ -77,7 +78,15 @@ def download_song(currId, save_path):
                 audio_title, artist, album = searchMetaData(audio_title + ' ' + artist)
             title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
             print("TITLE:", title)
-    
+
+        # Kind of unnecessary but may be helpful if switching storage methods
+        key = audio_title + " - " + artist
+        print(key)
+
+        with open("C:\\Users\\Eric's PC\\JenkinsJobs\\daily-tiktok\\remaining_songs.csv", mode='a', encoding='utf-8') as song_file:
+            song_file_writer = csv.writer(song_file, delimiter=",", quotechar='"', lineterminator="\n")
+            song_file_writer.writerow([key, audio_title, artist, album])
+
         audiofile = eyed3.load(title)
         audiofile.tag.artist = artist
         audiofile.tag.album = album
@@ -132,7 +141,7 @@ def download_playlist(link, key, save_path, start_num, end_num):
                     break
             else:
                 downloaded = False
-                currId = items[songId]["contentDetails"]["videoId"]                
+                currId = items[songId]["contentDetails"]["videoId"]
                 for i in range(RETRY):
                     if download_song(currId, save_path) == 0:
                         downloaded = True
@@ -160,7 +169,7 @@ def download_playlist(link, key, save_path, start_num, end_num):
     
 def chooseDir():
     currdir = os.getcwd()
-    app_window.sourceFolder = filedialog.askdirectory(parent=app_window, initialdir=currdir, title='Please select a directory')
+    app_window.sourceFolder = filedialog.askdirectory(parent=app_window, initialdir=currdir, title='Please select a directory').replace("/", "\\")
     chooseDir.config(text='Saving to: ' + app_window.sourceFolder)
     print(app_window.sourceFolder)
 

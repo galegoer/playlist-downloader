@@ -2,13 +2,14 @@ import requests
 import os
 import tkinter
 from tkinter import filedialog
-import youtube_dl
+import yt_dlp
 from get_cover_art import CoverFinder
 import eyed3
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
 import csv
+import urllib.parse
 
 RETRY = 3
 DOWNLOAD_LINK = "https://youtube.com/watch?v="
@@ -43,7 +44,7 @@ def handleClick():
         download_playlist(link, key, save_path, 1, -1)
     enterInfo.config(text='Enter Info')   
 
-def searchMetaData(title):
+def searchSpotifyMetaData(title):
     
     result = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials()).search(title, 3, 0)
     try:
@@ -63,21 +64,36 @@ def searchMetaData(title):
     except:
         print('Could not find:', title)
     
+def searchAppleMetaData(title):
+    query = 'https://itunes.apple.com/search?media=music&term={}&limit=3'.format(title)
+    result = requests.get(query).json()
+
+    try:
+        track = result['results'][0]
+        trackName = track['trackName']
+        artist = track['artistName']
+        album = track['collectionName']
+        return trackName, artist, album
+    except:
+        print('Could not find: ', title)
     
 def download_song(currId, save_path):
     try:
-        with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:
+        with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
             info = ydl.extract_info(DOWNLOAD_LINK+currId, download=True)
             album = info.get('album')
             artist = info.get('artist')
             audio_title = info.get('title')
+            print('ALBUM: ', album)
+            print('ARTIST: ', artist)
+            print('title; ', audio_title)
             if (artist and len(artist.split(',')) > 1) or (not artist):
                 # back up if no information search through spotify might be an easier way but this works for now
                 artist = info.get('channel')
                 # add artist/channel name in case song title could be interpreted as another song
-                audio_title, artist, album = searchMetaData(audio_title + ' ' + artist)
+                # audio_title, artist, album = searchSpotifyMetaData(audio_title + ' ' + artist)
+                audio_title, artist, album = searchAppleMetaData(urllib.parse.quote_plus(audio_title + ' ' + artist))
             title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
-            print("TITLE:", title)
 
         # Kind of unnecessary but may be helpful if switching storage methods
         key = audio_title + " - " + artist
@@ -95,7 +111,9 @@ def download_song(currId, save_path):
         
         audiofile.tag.save()
         
-        final_name = title.rsplit('-'+currId, 1)[0] + '.mp3'
+        # final_name = title.rsplit('-'+currId, 1)[0] + '.mp3'
+        final_name = title.split('[')[0]+'.mp3'
+        print('FINAL : ' + final_name)
         #adds album art
         #os.system('ffmpeg -i "' + dfile + '" -i "' + thumbnail_url + '" -q:a 0 -map a -c copy -disposition:0 attached_pic "' + temp_name + '" -loglevel quiet')
         
@@ -142,18 +160,22 @@ def download_playlist(link, key, save_path, start_num, end_num):
             else:
                 downloaded = False
                 currId = items[songId]["contentDetails"]["videoId"]
-                for i in range(RETRY):
-                    if download_song(currId, save_path) == 0:
-                        downloaded = True
-                        break
-                if not downloaded:
-                    with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:
-                        info = ydl.extract_info(DOWNLOAD_LINK+currId, download=False)
-                    artist = info.get('channel')
-                    audio_title = info.get('title')
-                    
-                    failed.write("Failed downloading song: " + audio_title + ' - ' + artist + '\n')
-                vidNum += 1
+                try:
+                    for i in range(RETRY):
+                        if download_song(currId, save_path) == 0:
+                            downloaded = True
+                            break
+                    if not downloaded:
+                        with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
+                            info = ydl.extract_info(DOWNLOAD_LINK+currId, download=False)
+                        artist = info.get('channel')
+                        audio_title = info.get('title')
+                        
+                        failed.write("Failed downloading song: " + audio_title + ' - ' + artist + '\n')
+                    vidNum += 1
+                except:
+                    continue
+
         if nextToken == None:
             break
         final = "https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId="+playlist_id+"&pageToken="+nextToken+"&key="+key
@@ -176,6 +198,7 @@ def chooseDir():
 if __name__ == "__main__":
     load_dotenv()
     app_window = tkinter.Tk()
+    app_window.title('Youtube Playlist Downloader')
     intro = tkinter.Label(text="Welcome\n Note: Will freeze upon download but notifications will be sent upon each download", fg="red")
     intro.pack()
 

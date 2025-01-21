@@ -3,6 +3,9 @@ import tkinter
 from tkinter import filedialog
 from get_cover_art import CoverFinder
 import eyed3
+from mutagen.mp3 import MP3
+from mutagen.id3 import ID3
+from mutagen.easyid3 import EasyID3
 
 def handleClickEdit():
 
@@ -11,8 +14,11 @@ def handleClickEdit():
     title = songTitle.get()
     album = songAlbum.get()
     artist = songArtist.get()
+    year = songYear.get()
+    genre = songGenre.get()
+    tracks = songTracks.get()
     enterInfo.config(text='Editing...')
-    updateSong(filepath, title, artist, album, coverArt.get())
+    updateSong(filepath, title, artist, album, coverArt.get(), year, genre, tracks)
 
     enterInfo.config(text='Enter Info')
     
@@ -33,18 +39,27 @@ def chooseFile():
     print(app_window.sourceFolder)
     chooseFile.config(text='Editing file: ' + app_window.sourceFolder)
     
-    audiofile = eyed3.load(app_window.sourceFolder)
-    print(audiofile.tag.title)
+    # audiofile = eyed3.load(app_window.sourceFolder)
+    audiofile = MP3(app_window.sourceFolder, ID3=EasyID3)
+
     songTitle.delete(0, tkinter.END)
-    songTitle.insert(0, audiofile.tag.title)
+    songTitle.insert(0, audiofile.get('title')[0])
     
-    print(audiofile.tag.album)
     songAlbum.delete(0, tkinter.END)
-    songAlbum.insert(0, audiofile.tag.album)    
+    songAlbum.insert(0, audiofile.get('album')[0])
     
-    print(audiofile.tag.artist)
     songArtist.delete(0, tkinter.END)
-    songArtist.insert(0, audiofile.tag.artist)        
+    songArtist.insert(0, audiofile.get('artist')[0])
+
+    songYear.delete(0, tkinter.END)
+    songYear.insert(0, str(audiofile.get('date')[0]))
+
+    songGenre.delete(0, tkinter.END)
+    songGenre.insert(0, audiofile.get('genre')[0])
+
+    songTracks.delete(0, tkinter.END)
+    songTracks.insert(0, audiofile.get('tracknumber')[0])
+
     
     
     
@@ -55,27 +70,39 @@ def chooseDir():
     
     print(app_window.sourceFolder)
 
-def updateSong(filepath, title, artist, album, coverArt):
+def updateSong(file_path, title, artist, album, removeCoverArt, year, genre, tracks):
     
-    audiofile = eyed3.load(filepath)
-    audiofile.tag.artist = artist
-    audiofile.tag.album = album
-    audiofile.tag.title = title
+    # audiofile = eyed3.load(file_path)
+    # audiofile.tag.artist = artist
+    # audiofile.tag.album = album
+    # audiofile.tag.title = title
+    # audiofile.tag.album_artist = artist
+    # audiofile.tag.track_num = track_num
+    # audiofile.tag.track_total = track_total
+    mp3 = MP3(file_path, ID3=EasyID3)
+    mp3['album'] = [album]
+    mp3['artist'] = [artist]
+    mp3['title'] = [title]
+    mp3['date'] = [year]
+    mp3['genre'] = [genre]
+    mp3['tracknumber'] = [tracks]
+    mp3.save()
     
     if removeCoverArt:
         try:
-            desc = audiofile.tag.images[0].description
-            audiofile.tag.images.remove(desc)
+            tags = ID3(file_path)
+            # desc = audiofile.tag.images[0].description
+            # audiofile.tag.images.remove(desc)
+            tags.delall('APIC')
+            tags.save()
         except:
             # has no picture
-            print('file has no cover art: ', filepath)
-    
-    audiofile.tag.save()
+            print('file has no cover art: ', file_path)
     
     if coverArt:
         # Could change if you are editing files in a folder that may need it
         finder = CoverFinder(options={'cleanup': True})
-        finder.scan_file(filepath)
+        finder.scan_file(file_path)
 
 if __name__ == "__main__":
                 
@@ -96,7 +123,22 @@ if __name__ == "__main__":
     albumLabel = tkinter.Label(text='Enter the album of the song')
     songAlbum = tkinter.Entry(width=50)
     albumLabel.pack()
-    songAlbum.pack()    
+    songAlbum.pack()
+
+    yearLabel = tkinter.Label(text='Enter the year of the song/album')
+    songYear = tkinter.Entry(width=50)
+    yearLabel.pack()
+    songYear.pack()  
+
+    genreLabel = tkinter.Label(text='Enter the genre of the song/album')
+    songGenre = tkinter.Entry(width=50)
+    genreLabel.pack()
+    songGenre.pack()  
+
+    tracksLabel = tkinter.Label(text='Enter the song entry of the album in the form \'track_num/tracks_total\' format')
+    songTracks = tkinter.Entry(width=50)
+    tracksLabel.pack()
+    songTracks.pack()
     
     removeCoverArt = tkinter.IntVar()
     removeCoverButton = tkinter.Checkbutton(text='Do you want to remove existing Cover Art?', variable=removeCoverArt, onvalue=True, offvalue=False)

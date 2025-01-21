@@ -4,12 +4,15 @@ import tkinter
 from tkinter import filedialog
 import yt_dlp
 from get_cover_art import CoverFinder
-import eyed3
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
 import csv
 import urllib.parse
+import re
+from mutagen.mp3 import MP3  
+from mutagen.easyid3 import EasyID3 
+
 
 RETRY = 3
 DOWNLOAD_LINK = "https://youtube.com/watch?v="
@@ -22,6 +25,16 @@ YDL_OPTS = {
         'preferredquality': '192',},
     ],
 }
+IGNORE_TERMS = [
+    "Audio",
+    "Vizualizer",
+    "Lyrics",
+    "Official"
+]
+
+def use_regex(input_text):
+    return re.sub(r'[\[\{\(](.*?' + '|'.join(map(re.escape, IGNORE_TERMS)) + r'.*?)[\}\)\]]', '', input_text, flags=re.IGNORECASE)
+
 
 def handleClick():
     print("clicked")
@@ -70,10 +83,14 @@ def searchAppleMetaData(title):
 
     try:
         track = result['results'][0]
-        trackName = track['trackName']
+        track_name = track['trackName']
         artist = track['artistName']
         album = track['collectionName']
-        return trackName, artist, album
+        track_num = track['trackNumber']
+        track_total = track['trackCount']
+        genre = track['primaryGenreName']
+        year = track['releaseDate'][:4]
+        return track_name, artist, album, track_num, track_total, genre, year
     except:
         print('Could not find: ', title)
     
@@ -87,12 +104,20 @@ def download_song(currId, save_path):
             print('ALBUM: ', album)
             print('ARTIST: ', artist)
             print('title; ', audio_title)
-            if (artist and len(artist.split(',')) > 1) or (not artist):
+            
+            if (not artist):
                 # back up if no information search through spotify might be an easier way but this works for now
                 artist = info.get('channel')
-                # add artist/channel name in case song title could be interpreted as another song
-                # audio_title, artist, album = searchSpotifyMetaData(audio_title + ' ' + artist)
-                audio_title, artist, album = searchAppleMetaData(urllib.parse.quote_plus(audio_title + ' ' + artist))
+            # add artist/channel name in case song title could be interpreted as another song
+            # audio_title, artist, album = searchSpotifyMetaData(audio_title + ' ' + artist)
+            
+            # Remove any brackets with (Audio) or (Official Video) etc.
+            # TODO: clean to remove space at end
+            audio_title = use_regex(audio_title)
+            # If artist isn't included add it
+            if not artist in audio_title:
+                audio_title += ' ' + artist
+            audio_title, artist, album, track_num, track_total, genre, year = searchAppleMetaData(urllib.parse.quote_plus(audio_title))
             title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
 
         # Kind of unnecessary but may be helpful if switching storage methods
@@ -102,17 +127,19 @@ def download_song(currId, save_path):
         with open("C:\\Users\\Eric's PC\\JenkinsJobs\\daily-tiktok\\remaining_songs.csv", mode='a', encoding='utf-8') as song_file:
             song_file_writer = csv.writer(song_file, delimiter=",", quotechar='"', lineterminator="\n")
             song_file_writer.writerow([key, audio_title, artist, album])
-
-        audiofile = eyed3.load(title)
-        audiofile.tag.artist = artist
-        audiofile.tag.album = album
-        # not sure if needed
-        audiofile.tag.title = audio_title
-        
-        audiofile.tag.save()
+        # TODO: if something fails it will just not update any metadata? not sure if it will show that file failed since it was techincally downloaded
+        mp3 = MP3(title, ID3=EasyID3)
+        mp3['album'] = [album]
+        mp3['artist'] = [artist]
+        mp3['title'] = [audio_title]
+        mp3['date'] = [year]
+        mp3['genre'] = [genre]
+        mp3['tracknumber'] = [str(track_num)+'/'+str(track_total)]
+        mp3.save()
         
         # final_name = title.rsplit('-'+currId, 1)[0] + '.mp3'
-        final_name = title.split('[')[0]+'.mp3'
+        # TODO: take out extra space that may be in title at end
+        final_name = title.split(' [')[0]+'.mp3'
         print('FINAL : ' + final_name)
         #adds album art
         #os.system('ffmpeg -i "' + dfile + '" -i "' + thumbnail_url + '" -q:a 0 -map a -c copy -disposition:0 attached_pic "' + temp_name + '" -loglevel quiet')

@@ -7,7 +7,7 @@ from get_cover_art import CoverFinder
 import eyed3
 from dotenv import load_dotenv
 
-from playlistDownloader import searchMetaData, download_playlist
+from playlistDownloader import download_playlist
 
 # Run this file however often you would like when there are updates to your playlist
 
@@ -39,11 +39,11 @@ if __name__ == "__main__":
     
     print('NUMBER OF SONGS TO DOWNLOAD: ', end_num)
     
-    if(end_num == 0):
+    if(end_num <= 0):
         #no new songs
         print('No new songs to download')
-        exit(0)
-    download_playlist(LINK, KEY, SAVE_PATH, START_NUM, end_num)
+    else:
+        download_playlist(LINK, KEY, SAVE_PATH, START_NUM, end_num)
     newTotal = open("lastTotal.txt", "w")
     newTotal.write(str(totalRes))
     newTotal.close()

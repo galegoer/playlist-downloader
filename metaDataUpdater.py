@@ -7,6 +7,33 @@ from mutagen.mp3 import MP3
 from mutagen.id3 import ID3
 from mutagen.easyid3 import EasyID3
 
+from playlistDownloader import searchAppleMetaData
+
+def searchMetaData():
+    query = searchTerm.get()
+
+    # track_name, artist, album, track_num, track_total, genre, year
+    res = searchAppleMetaData(query)
+
+    # TODO: Refactor duplicated code
+    songTitle.delete(0, tkinter.END)
+    songTitle.insert(0, res[0])
+    
+    songArtist.delete(0, tkinter.END)
+    songArtist.insert(0, res[1])
+
+    songAlbum.delete(0, tkinter.END)
+    songAlbum.insert(0, res[2])
+
+    songTracks.delete(0, tkinter.END)
+    songTracks.insert(0, str(res[3]) + '/' + str(res[4]))
+
+    songGenre.delete(0, tkinter.END)
+    songGenre.insert(0, res[5])
+    
+    songYear.delete(0, tkinter.END)
+    songYear.insert(0, res[6])
+
 def handleClickEdit():
 
     filepath = app_window.sourceFolder
@@ -139,6 +166,15 @@ if __name__ == "__main__":
     songTracks = tkinter.Entry(width=50)
     tracksLabel.pack()
     songTracks.pack()
+
+    searchLabel = tkinter.Label(text='Search song metadata through Apple Music')
+    searchTerm = tkinter.Entry(width=50)
+    searchLabel.pack()
+    searchTerm.pack()
+
+    searchMetaDataText = "Search and populate with metadata"
+    searchMetaData = tkinter.Button(app_window, text=searchMetaDataText, bg="green", command=searchMetaData)
+    searchMetaData.pack()
     
     removeCoverArt = tkinter.IntVar()
     removeCoverButton = tkinter.Checkbutton(text='Do you want to remove existing Cover Art?', variable=removeCoverArt, onvalue=True, offvalue=False)
@@ -155,7 +191,7 @@ if __name__ == "__main__":
     enterInfo = tkinter.Button(app_window, text='Start Editing Song', bg="red", command=handleClickEdit)
     enterInfo.pack()
     
-    chooseDirText = "Chose Folder To Add Cover Art To (Will Work Nested)"
+    chooseDirText = "Choose Folder To Add Cover Art To (Will Work Nested)"
     chooseDir = tkinter.Button(app_window, text=chooseDirText, command=chooseDir)
     chooseDir.pack()
     

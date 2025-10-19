@@ -1,23 +1,32 @@
-import requests
 import os
+import re
+import urllib.parse
+import csv
 import tkinter
 from tkinter import filedialog
+
 import yt_dlp
-from get_cover_art import CoverFinder
+import requests
+from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-from dotenv import load_dotenv
-import csv
-import urllib.parse
-import re
 from mutagen.mp3 import MP3  
 from mutagen.easyid3 import EasyID3 
+from get_cover_art import CoverFinder
+
+
+class QuietLogger:
+    def debug(self, msg): pass
+    def warning(self, msg): pass
+    def error(self, msg): print(msg)
 
 
 RETRY = 3
 DOWNLOAD_LINK = "https://youtube.com/watch?v="
 YDL_OPTS = {
-    'debug_printtraffic': 'false',
+    'logger': QuietLogger(),
+    'quiet': True,
+    'no_warnings': True,
     'format': 'bestaudio',
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',

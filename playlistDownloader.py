@@ -87,11 +87,15 @@ def searchSpotifyMetaData(title):
         print('Could not find:', title)
     
 def searchAppleMetaData(title):
+    # TODO: Make a proper logger
+    debugger = open("debugger.txt", "a")
+    debugger.write("Searched title: " + title + '\n')
     query = 'https://itunes.apple.com/search?media=music&term={}&limit=3'.format(title)
     result = requests.get(query).json()
 
     try:
         track = result['results'][0]
+        debugger.write("Results: " + str(result['results']))
         track_name = track['trackName']
         artist = track['artistName']
         album = track['collectionName']
@@ -125,7 +129,7 @@ def download_song(currId, save_path):
             audio_title = use_regex(audio_title)
             # If artist isn't included add it
             if not artist in audio_title:
-                audio_title += ' ' + artist
+                audio_title += ' ' + artist.split(",")[0]
             audio_title, artist, album, track_num, track_total, genre, year = searchAppleMetaData(urllib.parse.quote_plus(audio_title))
             title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
 

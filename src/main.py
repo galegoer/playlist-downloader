@@ -2,7 +2,7 @@ import sys
 import requests
 from dotenv import load_dotenv
 
-from config.settings import LINK, KEY, SAVE_PATH, START_NUM, debugger
+from config.settings import START_NUM, debugger
 from utils.downloader import download_playlist
 
 # Run this file however often you would like when there are updates to your playlist
@@ -13,9 +13,10 @@ from utils.downloader import download_playlist
 
 if __name__ == "__main__":
     load_dotenv()
-    if len(sys.argv) == 2:
-        arg1 = sys.argv[1]
-        arg2 = sys.argv[2]
+    if len(sys.argv) == 4:
+        LINK = sys.argv[1]
+        KEY = sys.argv[2]
+        SAVE_PATH = sys.argv[3]
 
         lastTotalFile = open("lastTotal.txt", "r")
         lastTotal = int(lastTotalFile.read())
@@ -40,4 +41,4 @@ if __name__ == "__main__":
         newTotal.write(str(totalRes))
         newTotal.close()
     else:
-        print("More or less than 2 arguments were provided please provide a playlist link and YT API key")
+        print("More or less than 3 arguments were provided please provide a playlist link, YT API key, and save path")

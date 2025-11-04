@@ -2,7 +2,7 @@ import sys
 import requests
 from dotenv import load_dotenv
 
-from config.settings import START_NUM, debugger
+from config.settings import START_NUM, SAVE_PATH, debugger
 from utils.downloader import download_playlist
 
 # Run this file however often you would like when there are updates to your playlist
@@ -13,10 +13,9 @@ from utils.downloader import download_playlist
 
 if __name__ == "__main__":
     load_dotenv()
-    if len(sys.argv) == 4:
+    if len(sys.argv) == 3:
         LINK = sys.argv[1]
         KEY = sys.argv[2]
-        SAVE_PATH = sys.argv[3]
 
         lastTotalFile = open("lastTotal.txt", "r")
         lastTotal = int(lastTotalFile.read())

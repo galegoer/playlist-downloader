@@ -27,3 +27,4 @@ IGNORE_TERMS = [
     "Official"
 ]
 START_NUM = 1
+SAVE_PATH = "Downloads/"

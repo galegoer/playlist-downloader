@@ -2,6 +2,92 @@
 
 This is a YouTube playlist downloader that I made after realizing pytube already has the function to do half the work I did. It also adds cover art.
 
+# Using via Docker
+
+1. Download Docker Desktop:
+    - https://docs.docker.com/desktop/setup/install/windows-install/ - Windows
+    - https://docs.docker.com/desktop/setup/install/mac-install/ - Mac
+
+
+2. Run the following command through your terminal
+
+    (NOTE: make sure you are in the playlist-downloader directory)
+
+        docker build -t myapp .
+
+3. Run the following command based on the terminal
+
+    Windows CMD
+
+        docker run -v "%cd%:/app" myapp {Public Playlist URL} {YT API KEY}
+    
+    Windows Powershell
+
+        docker run -v "${PWD}:/app" myapp {Public Playlist URL} {YT API KEY}
+
+    Bash
+
+        docker run -v "$(pwd)/:/app/" myapp {Public Playlist URL} {YT API KEY}
+
+    **(Alternatively you can just paste the directory playlist-downloader is in, and it will go before :/app)**
+
+4. Songs with their metadata should start downloading to the Downloads directory.
+
+## Scheduling
+
+If you want to have this job running on a schedule with Windows you can use **Task Scheduler**.
+
+---
+
+### **1. Open Task Scheduler**
+
+Press **Win + R**, type `taskschd.msc`, and hit Enter.
+
+---
+
+### **2. Create a New Task**
+
+* Click **"Action > Create Task"** (not “Basic Task”).
+* Give it a name e.g. `DailyDownloader`.
+
+---
+
+### **3. Set the Trigger**
+
+* Go to the **Triggers** tab → **New...**
+* Set “Begin the task” to “On a schedule”.
+* Choose **Daily**, then set the time you want it to run.
+* Click **OK**.
+
+---
+
+### **4. Set the Action**
+
+* Go to the **Actions** tab → **New...**
+* “Action” = **Start a program**
+* In **Program/script**, enter:
+
+  ```
+  docker
+  ```
+* In **Add arguments**, put your command, for example:
+
+  ```
+  run --rm -v "C:\Path\To\Your\Folder\playlist-downloader:/app" myapp PLAYLIST_URL YT_API_KEY
+  ```
+
+  *(Replace `C:\Path\To\Your\Folder` with your actual local directory where playlist-downloader is located)*
+* Click **OK**.
+
+---
+
+### **6. Test it**
+
+Click your task → **Run** (on the right-hand side).
+Then verify via debugger.txt or the Downloads directory that the job ran correctly.
+
+---
+
 # Requirements
 - Python 3.8
 - pytube (can be installed using pip or from the web)

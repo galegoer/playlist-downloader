@@ -15,6 +15,7 @@ python-dotenv==0.20.0
 requests==2.31.0
 six==1.17.0
 spotipy==2.19.0
+streamlit==1.51.0
 tkinterdnd2==0.4.3
 toml==0.10.2
 urllib3==1.26.18

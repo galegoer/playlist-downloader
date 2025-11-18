@@ -1,29 +1,54 @@
-import os
 import requests
 from get_cover_art import CoverFinder
 from mutagen.mp3 import MP3
-from mutagen.id3 import ID3, APIC, error, ID3NoHeaderError
+from mutagen.id3 import ID3, APIC, error
 from mutagen.easyid3 import EasyID3
 from io import BytesIO
-from PIL import Image, ImageTk
+from PIL import Image
 
 def embed_coverart(file_path: str, image_data: BytesIO, image_format: str):
     try:
-        mime = f"image/{image_format.lower()}" if image_format else "image/jpeg"
-        print(mime)
-        image_data.seek(0)
-        tags = ID3(file_path)
+        # Convert image to JPEG always (iTunes requirement)
+        img = Image.open(BytesIO(image_data)).convert("RGB")
+        jpeg_buffer = BytesIO()
+        img.save(jpeg_buffer, format="JPEG")
+        jpeg_bytes = jpeg_buffer.getvalue()
+
+        try:
+            tags = ID3(file_path)
+        except error:
+            tags = ID3()
+        # Remove old APIC frames (iTunes ignores duplicates)
+        for key in list(tags.keys()):
+            if key.startswith("APIC"):
+                del tags[key]
+
         tags.add(APIC(
-            encoding=3,  # UTF-8
-            mime=mime,
-            type=3,      # front cover
-            desc='Cover',
-            data=image_data.read()
+            encoding=3,
+            mime="image/jpeg",
+            type=3,
+            desc="Cover",
+            data=jpeg_bytes
         ))
 
-        # Write a fresh v2.3 tag (iTunes-compatible)
+        # Save as proper ID3v2.3 (very important)
         tags.save(file_path, v2_version=3)
-        print(f"✅ Rewrote ID3v2.3 tags with new cover art: {os.path.basename(file_path)}")
+        # print(image_format)
+        # print(image_data)
+        # mime = f"image/{image_format.lower()}" if image_format else "image/jpeg"
+        # image_data.seek(0)
+        # tags = ID3(file_path)
+        # tags.add(APIC(
+        #     encoding=3,  # UTF-8
+        #     mime=mime,
+        #     type=3,      # front cover
+        #     desc='Cover',
+        #     data=image_data.read()
+        # ))
+
+        # # Write a fresh v2.3 tag (iTunes-compatible)
+        # tags.save(file_path, v2_version=3)
+        # print(f"✅ Rewrote ID3v2.3 tags with new cover art")
 
     except Exception as e:
         print("Error embedding image into MP3:", e)
@@ -36,8 +61,10 @@ def get_current_cover(file_path: str):
             if isinstance(frame, APIC):
                 img_data = BytesIO(frame.data)
                 img = Image.open(img_data)
+                img_name = frame.mime.split("/")[1]
+                print('img_name: ', img_name)
                 print("Loaded existing cover art from file.")
-                return img
+                return img, img_data, img_name
         print("No embedded cover art found.")
     except Exception as e:
         print("Error reading cover art:", e)
@@ -63,7 +90,6 @@ def searchAppleMetaData(title):
         print('Could not find: ', title)
 
 def updateSong(file_path, title, artist, album, year, genre, tracks):
-    
     mp3 = MP3(file_path, ID3=EasyID3)
     mp3['album'] = [album]
     mp3['artist'] = [artist]

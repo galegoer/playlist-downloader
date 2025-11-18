@@ -26,10 +26,10 @@ YDL_OPTS = {
     ],
 }
 
-def downloadSong(currId, save_path):
+def downloadSong(url, save_path):
     try:
         with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
-            info = ydl.extract_info(DOWNLOAD_LINK+currId, download=True)
+            info = ydl.extract_info(url, download=True)
             album = info.get('album')
             artist = info.get('artist')
             audio_title = info.get('title')
@@ -67,7 +67,7 @@ def downloadSong(currId, save_path):
 
         os.rename(title, save_path+final_name)
         print("DOWNLOADED:", final_name)
-        return 0
+        return save_path+final_name
     except Exception as e:
         print("Exception:", e)
-        return -1
+        return e

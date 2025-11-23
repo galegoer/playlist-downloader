@@ -85,7 +85,8 @@ def searchAppleMetaData(title):
         track_total = track['trackCount']
         genre = track['primaryGenreName']
         year = track['releaseDate'][:4]
-        return track_name, artist, album, track_num, track_total, genre, year
+        artwork = track['artworkUrl100']
+        return track_name, artist, album, track_num, track_total, genre, year, artwork
     except:
         print('Could not find: ', title)
 

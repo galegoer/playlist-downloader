@@ -13,6 +13,8 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from mutagen.mp3 import MP3  
 from mutagen.easyid3 import EasyID3 
 from get_cover_art import CoverFinder
+from src.utils.utils import _urlopen_safe
+from src.utils.metaDataUtils import embed_coverart
 
 
 class QuietLogger:
@@ -95,7 +97,7 @@ def searchAppleMetaData(title):
 
     try:
         track = result['results'][0]
-        debugger.write("Results: " + str(result['results']))
+        debugger.write("Results: " + str(result['results']) + '\n')
         track_name = track['trackName']
         artist = track['artistName']
         album = track['collectionName']
@@ -103,7 +105,9 @@ def searchAppleMetaData(title):
         track_total = track['trackCount']
         genre = track['primaryGenreName']
         year = track['releaseDate'][:4]
-        return track_name, artist, album, track_num, track_total, genre, year
+        artwork = track['artworkUrl100']
+
+        return track_name, artist, album, track_num, track_total, genre, year, artwork
     except:
         print('Could not find: ', title)
     
@@ -130,8 +134,16 @@ def download_song(currId, save_path):
             # If artist isn't included add it
             if not artist in audio_title:
                 audio_title += ' ' + artist.split(",")[0]
-            audio_title, artist, album, track_num, track_total, genre, year = searchAppleMetaData(urllib.parse.quote_plus(audio_title))
+            audio_title, artist, album, track_num, track_total, genre, year, artwork = searchAppleMetaData(urllib.parse.quote_plus(audio_title))
+            # TODO: If it does not match up try a different search
+            # Maybe use difflib
+
             title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
+
+            # Populate artwork
+            if artwork:
+                image_bytes = _urlopen_safe(artwork)
+                embed_coverart(title, image_bytes, "jpg")
 
         # Kind of unnecessary but may be helpful if switching storage methods
         key = audio_title + " - " + artist

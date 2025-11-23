@@ -6,6 +6,8 @@ import urllib.parse
 
 from utils.utils import use_regex
 from utils.metaDataUtils import searchAppleMetaData
+from utils.utils import _urlopen_safe
+from utils.metaDataUtils import embed_coverart
 
 class QuietLogger:
     def debug(self, msg): pass
@@ -45,8 +47,17 @@ def downloadSong(url, save_path):
             # If artist isn't included add it
             if not artist in audio_title:
                 audio_title += ' ' + artist.split(",")[0]
-            audio_title, artist, album, track_num, track_total, genre, year = searchAppleMetaData(urllib.parse.quote_plus(audio_title))
+            audio_title, artist, album, track_num, track_total, genre, year, artwork = searchAppleMetaData(urllib.parse.quote_plus(audio_title))
+            # TODO: If it does not match up try a different search
+            # Maybe use difflib            
+             
             title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
+
+            # Populate artwork
+            if artwork:
+                quality_artwork = artwork.replace("100x100", "500x500")
+                image_bytes = _urlopen_safe(quality_artwork)
+                embed_coverart(title, image_bytes, "jpg")
 
         # Kind of unnecessary but may be helpful if switching storage methods
         key = audio_title + " - " + artist

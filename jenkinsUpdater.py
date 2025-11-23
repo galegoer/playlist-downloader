@@ -2,7 +2,6 @@ import requests
 import os
 import tkinter
 from tkinter import filedialog
-import youtube_dl
 from get_cover_art import CoverFinder
 import eyed3
 from dotenv import load_dotenv

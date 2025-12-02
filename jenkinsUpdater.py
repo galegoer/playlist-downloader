@@ -1,12 +1,7 @@
 import requests
-import os
-import tkinter
-from tkinter import filedialog
-from get_cover_art import CoverFinder
-import eyed3
 from dotenv import load_dotenv
 
-from playlistDownloader import download_playlist
+from src.utils.downloadUtils import download_playlist
 
 # Run this file however often you would like when there are updates to your playlist
 

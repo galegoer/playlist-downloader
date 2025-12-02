@@ -3,6 +3,7 @@ import yt_dlp
 from mutagen.mp3 import MP3  
 from mutagen.easyid3 import EasyID3
 import urllib.parse
+import requests
 
 from utils.utils import use_regex
 from utils.metaDataUtils import searchAppleMetaData, searchSpotifyMetaData
@@ -91,3 +92,61 @@ def downloadSong(url, save_path):
     except Exception as e:
         print("Exception:", e)
         return e
+    
+def download_playlist(link, key, save_path, start_num, end_num):
+    failed = open("failed.txt", "a")
+    
+    playlist_id = link[link.find("=")+1:]
+    final="https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId="+str(playlist_id)+"&key="+str(key)
+    vidNum = 1
+    
+    r = requests.get(final)
+    json = r.json()
+    #print(json)
+    
+    totalRes = json["pageInfo"]["totalResults"]
+    if(end_num == -1):
+        #-1 means download all vids
+        end_num = totalRes
+    perPage = json["pageInfo"]["resultsPerPage"]
+    try:
+        nextToken = json["nextPageToken"]
+    except:
+        nextToken = None
+    for result in range(0, totalRes, perPage):
+        items = json["items"]
+        for songId in range(0,len(items)):
+            if not (vidNum >= start_num and vidNum <= end_num):
+                if (vidNum < start_num):
+                    vidNum += 1
+                    continue
+                else:
+                    print("Done Downloading vids in range")
+                    nextToken = None
+                    break
+            else:
+                downloaded = False
+                currId = items[songId]["contentDetails"]["videoId"]
+                try:
+                    for i in range(RETRY):
+                        if downloadSong(currId, save_path) == 0:
+                            downloaded = True
+                            break
+                    if not downloaded:
+                        with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
+                            info = ydl.extract_info(DOWNLOAD_LINK+currId, download=False)
+                        artist = info.get('channel')
+                        audio_title = info.get('title')
+                        
+                        failed.write("Failed downloading song: " + audio_title + ' - ' + artist + '\n')
+                    vidNum += 1
+                except:
+                    continue
+
+        if nextToken == None:
+            break
+        final = "https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId="+playlist_id+"&pageToken="+nextToken+"&key="+key
+        r = requests.get(final)
+        json = r.json()
+        nextToken = json.get("nextPageToken")
+    failed.close()

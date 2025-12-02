@@ -5,6 +5,9 @@ from mutagen.id3 import ID3, APIC, error
 from mutagen.easyid3 import EasyID3
 from io import BytesIO
 from PIL import Image
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+from rapidfuzz import fuzz
 
 def embed_coverart(file_path: str, image_data: BytesIO, image_format: str):
     try:
@@ -69,26 +72,51 @@ def get_current_cover(file_path: str):
     except Exception as e:
         print("Error reading cover art:", e)
 
-def searchAppleMetaData(title):
+def searchAppleMetaData(title, original_title=None, original_artist=None):
     debugger = open("debugger.txt", "a")
     debugger.write("Searched title: " + title + '\n')
     query = 'https://itunes.apple.com/search?media=music&term={}&limit=3'.format(title)
     result = requests.get(query).json()
 
     try:
-        track = result['results'][0]
         debugger.write("Results: " + str(result['results']))
-        track_name = track['trackName']
-        artist = track['artistName']
-        album = track['collectionName']
-        track_num = track['trackNumber']
-        track_total = track['trackCount']
-        genre = track['primaryGenreName']
-        year = track['releaseDate'][:4]
-        artwork = track['artworkUrl100']
-        return track_name, artist, album, track_num, track_total, genre, year, artwork
+        for track in result['results']:
+            track_name = track['trackName']
+            artist = track['artistName']
+            album = track['collectionName']
+            track_num = track['trackNumber']
+            track_total = track['trackCount']
+            genre = track['primaryGenreName']
+            year = track['releaseDate'][:4]
+            artwork = track['artworkUrl100']
+            if is_close_match(track_name, original_title) and is_close_match(artist, original_artist):
+                return track_name, artist, album, track_num, track_total, genre, year, artwork
+        raise
     except:
         print('Could not find: ', title)
+
+def searchSpotifyMetaData(title, original_title=None, original_artist=None):
+    
+    result = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials()).search(title, 3, 0)
+    try:
+        for track in result['tracks']['items']:
+            artist = track['artists'][0]['name']
+            album = track['album']['name']
+            # not sure if this guaranteed but if we don't want the name of features
+            audio_title = track['name'].split("(")
+            # If it starts with a ( just keep full title
+            if audio_title[0] == "":
+                audio_title = track['name']
+            # Take first string before '(' don't need additional artists
+            audio_title = audio_title[0].strip()
+            track_num = track['track_number']
+            track_total = track['album']['total_tracks']
+            year = track['album']['release_date'][:4]
+            artwork = track['album']['images'][0]['url']
+            if is_close_match(audio_title, original_title) and is_close_match(artist, original_artist):
+                return audio_title, artist, album, track_num, track_total, "", year, artwork
+    except:
+        print('Could not find:', title)
 
 def updateSong(file_path, title, artist, album, year, genre, tracks):
     mp3 = MP3(file_path, ID3=EasyID3)
@@ -108,3 +136,13 @@ def convert_webp_to_jpg(filepath: str):
     img = Image.open(filepath)
     img = img.convert("RGB")
     img.save(filepath)
+
+def is_close_match(a: str, b: str, threshold: int = 90) -> bool:
+    # Normalize the strings
+    a_norm = a.strip().lower()
+    b_norm = b.strip().lower()
+
+    # Partial Ratio or Token Sort Ratio both work well
+    score = fuzz.token_sort_ratio(a_norm, b_norm)
+
+    return score >= threshold

@@ -5,7 +5,7 @@ from mutagen.easyid3 import EasyID3
 import urllib.parse
 
 from utils.utils import use_regex
-from utils.metaDataUtils import searchAppleMetaData
+from utils.metaDataUtils import searchAppleMetaData, searchSpotifyMetaData
 from utils.utils import _urlopen_safe
 from utils.metaDataUtils import embed_coverart
 
@@ -37,7 +37,7 @@ def downloadSong(url, save_path):
             audio_title = info.get('title')
             print('ALBUM: ', album)
             print('ARTIST: ', artist)
-            print('title; ', audio_title)
+            print('title: ', audio_title)
             
             if (not artist):
                 artist = info.get('channel')
@@ -45,18 +45,26 @@ def downloadSong(url, save_path):
             # Remove any brackets with (Audio) or (Official Video) etc.
             audio_title = use_regex(audio_title)
             # If artist isn't included add it
+            artwork = ""
+            year = ""
+            genre = ""
+            track_num = 1
+            track_total = 1
             if not artist in audio_title:
                 audio_title += ' ' + artist.split(",")[0]
-            audio_title, artist, album, track_num, track_total, genre, year, artwork = searchAppleMetaData(urllib.parse.quote_plus(audio_title))
-            # TODO: If it does not match up try a different search
-            # Maybe use difflib            
-             
+            try:
+                audio_title, artist, album, track_num, track_total, genre, year, artwork = searchAppleMetaData(urllib.parse.quote_plus(audio_title), original_title=info.get("title"), original_artist=artist)
+                apple_art = True
+            except:
+                audio_title, artist, album, track_num, track_total, genre, year, artwork = searchSpotifyMetaData(audio_title, original_title=info.get("title"), original_artist=artist)
+            
             title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
 
             # Populate artwork
             if artwork:
-                quality_artwork = artwork.replace("100x100", "500x500")
-                image_bytes = _urlopen_safe(quality_artwork)
+                if apple_art:
+                    artwork = artwork.replace("100x100", "500x500")
+                image_bytes = _urlopen_safe(artwork)
                 embed_coverart(title, image_bytes, "jpg")
 
         # Kind of unnecessary but may be helpful if switching storage methods
@@ -67,10 +75,11 @@ def downloadSong(url, save_path):
         mp3['album'] = [album]
         mp3['artist'] = [artist]
         mp3['title'] = [audio_title]
-        mp3['date'] = [year]
-        mp3['genre'] = [genre]
-        mp3['tracknumber'] = [str(track_num)+'/'+str(track_total)]
-        mp3.save()
+        if year:
+            mp3['date'] = [year]
+            mp3['genre'] = [genre]
+            mp3['tracknumber'] = [str(track_num)+'/'+str(track_total)]
+            mp3.save()
         
         # TODO: take out extra space that may be in title at end
         final_name = title.split(' [')[0]+'.mp3'

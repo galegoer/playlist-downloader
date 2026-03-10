@@ -35,6 +35,7 @@ def downloadSong(url, save_path):
             info = ydl.extract_info(url, download=True)
             album = info.get('album')
             artist = info.get('artist')
+            if artist is not None: artist = artist.split(",")[0]
             audio_title = info.get('title')
             print('ALBUM: ', album)
             print('ARTIST: ', artist)
@@ -44,21 +45,31 @@ def downloadSong(url, save_path):
                 artist = info.get('channel')
             
             # Remove any brackets with (Audio) or (Official Video) etc.
-            audio_title = use_regex(audio_title)
+            audio_title = use_regex(audio_title).strip()
             # If artist isn't included add it
+            apple_art = False
             artwork = ""
             year = ""
             genre = ""
             track_num = 1
             track_total = 1
-            if not artist in audio_title:
-                audio_title += ' ' + artist.split(",")[0]
+            search_query = audio_title
+            if not artist in search_query:
+                search_query += ' ' + artist
+            else:
+                details = search_query.split(" - ")
+                artist = details[0].strip()
+                audio_title = details[1].strip()
+                search_query = audio_title + ' ' + artist
+            search_query = search_query.strip()
             try:
-                audio_title, artist, album, track_num, track_total, genre, year, artwork = searchAppleMetaData(urllib.parse.quote_plus(audio_title), original_title=info.get("title"), original_artist=artist)
+                audio_title, artist, album, track_num, track_total, genre, year, artwork = searchAppleMetaData(search_query, original_title=audio_title, original_artist=artist)
                 apple_art = True
             except:
-                audio_title, artist, album, track_num, track_total, genre, year, artwork = searchSpotifyMetaData(audio_title, original_title=info.get("title"), original_artist=artist)
-            
+                try:
+                    audio_title, artist, album, track_num, track_total, genre, year, artwork = searchSpotifyMetaData(search_query, original_title=audio_title, original_artist=artist)
+                except:
+                    print('Could not find in Apple or Spotify:', search_query)
             title = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
 
             # Populate artwork
@@ -91,7 +102,7 @@ def downloadSong(url, save_path):
         return save_path+final_name
     except Exception as e:
         print("Exception:", e)
-        return e
+        raise e
     
 def download_playlist(link, key, save_path, start_num, end_num):
     failed = open("failed.txt", "a")
@@ -125,13 +136,14 @@ def download_playlist(link, key, save_path, start_num, end_num):
                     nextToken = None
                     break
             else:
+                vidNum += 1
                 downloaded = False
                 currId = items[songId]["contentDetails"]["videoId"]
                 try:
                     for i in range(RETRY):
-                        if downloadSong(currId, save_path) == 0:
-                            downloaded = True
-                            break
+                        downloadSong(currId, save_path)
+                        downloaded = True
+                        break
                     if not downloaded:
                         with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
                             info = ydl.extract_info(DOWNLOAD_LINK+currId, download=False)
@@ -139,7 +151,6 @@ def download_playlist(link, key, save_path, start_num, end_num):
                         audio_title = info.get('title')
                         
                         failed.write("Failed downloading song: " + audio_title + ' - ' + artist + '\n')
-                    vidNum += 1
                 except:
                     continue
 

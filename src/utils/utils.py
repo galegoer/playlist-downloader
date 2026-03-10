@@ -10,11 +10,15 @@ IGNORE_TERMS = [
     "Audio",
     "Vizualizer",
     "Lyrics",
-    "Official"
+    "Official",
+    "Remastered",
+    "Remaster",
+    "Deluxe Edition",
 ]
 
 def use_regex(input_text):
-    return re.sub(r'[\[\{\(](.*?' + '|'.join(map(re.escape, IGNORE_TERMS)) + r'.*?)[\}\)\]]', '', input_text, flags=re.IGNORECASE)
+    # return re.sub(r'[\[\{\(](.*?' + '|'.join(map(re.escape, IGNORE_TERMS)) + r'.*?)[\}\)\]]', '', input_text, flags=re.IGNORECASE)
+    return re.sub(r'[\[\{\(](.*?)[\}\)\]]', '', input_text, flags=re.IGNORECASE)
 
 def _urlopen_safe(url):
     for i in range(3):

@@ -110,6 +110,7 @@ def download_playlist(link, key, save_path, start_num, end_num):
     playlist_id = link[link.find("=")+1:]
     final="https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId="+str(playlist_id)+"&key="+str(key)
     vidNum = 1
+    num_downloaded = 0
     
     r = requests.get(final)
     json = r.json()
@@ -143,6 +144,7 @@ def download_playlist(link, key, save_path, start_num, end_num):
                     for i in range(RETRY):
                         downloadSong(currId, save_path)
                         downloaded = True
+                        num_downloaded += 1
                         break
                     if not downloaded:
                         with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
@@ -161,3 +163,5 @@ def download_playlist(link, key, save_path, start_num, end_num):
         json = r.json()
         nextToken = json.get("nextPageToken")
     failed.close()
+    print(f"Total songs downloaded: {num_downloaded}")
+    return num_downloaded
